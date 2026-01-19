@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Memory Visualizer - 바닐라 Python vs NumPy 메모리 구조 비교</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #1976D2 0%, #4CAF50 100%);
+            color: white;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            flex: 1;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .panel-python {
+            border-top: 5px solid #1976D2;
+        }
+
+        .panel-numpy {
+            border-top: 5px solid #4CAF50;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-python .panel-title {
+            color: #1976D2;
+        }
+
+        .panel-numpy .panel-title {
+            color: #4CAF50;
+        }
+
+        .code-input {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            resize: vertical;
+            margin-bottom: 12px;
+            transition: border-color 0.3s;
+        }
+
+        .panel-python .code-input:focus {
+            outline: none;
+            border-color: #1976D2;
+        }
+
+        .panel-numpy .code-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-example {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-example:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-python {
+            background: #1976D2;
+            color: white;
+        }
+
+        .btn-python:hover {
+            background: #1565C0;
+        }
+
+        .btn-numpy {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-numpy:hover {
+            background: #388E3C;
+        }
+
+        .visualization-area {
+            background: #fafafa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            min-height: 450px;
+            overflow: auto;
+        }
+
+        .visualization-area svg {
+            display: block;
+        }
+
+        .comparison-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-top: 5px solid #FF9800;
+            margin-bottom: 20px;
+        }
+
+        .comparison-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #FF9800;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .comparison-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-box {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-box-python {
+            background: #E3F2FD;
+            border: 2px solid #1976D2;
+        }
+
+        .stat-box-numpy {
+            background: #E8F5E9;
+            border: 2px solid #4CAF50;
+        }
+
+        .stat-box-compare {
+            background: #FFF3CD;
+            border: 2px solid #FF9800;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-box-python .stat-value {
+            color: #1976D2;
+        }
+
+        .stat-box-numpy .stat-value {
+            color: #4CAF50;
+        }
+
+        .stat-box-compare .stat-value {
+            color: #E65100;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .legend-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .legend-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+
+        .placeholder-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #999;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Python Memory Visualizer</h1>
+            <p>바닐라 Python 리스트와 NumPy 배열의 메모리 구조 차이를 시각화합니다</p>
+        </div>
+
+        <div class="main-content">
+            <div class="panel panel-python">
+                <div class="panel-title">
+                    <span>Python List 메모리 구조</span>
+                </div>
+                <textarea class="code-input" id="pythonCode" placeholder="Python 리스트 코드를 입력하세요&#10;예: my_list = [1, 2, 3, 4, 5]"></textarea>
+                <div class="btn-group">
+                    <button class="btn btn-example" onclick="loadPythonExample()">예제 로드</button>
+                    <button class="btn btn-python" onclick="executePython()">실행</button>
+                </div>
+                <div class="visualization-area" id="pythonVisualization">
+                    <div class="placeholder-message">Python 코드를 입력하고 실행 버튼을 클릭하세요</div>
+                </div>
+            </div>
+
+            <div class="panel panel-numpy">
+                <div class="panel-title">
+                    <span>NumPy Array 메모리 구조</span>
+                </div>
+                <textarea class="code-input" id="numpyCode" placeholder="NumPy 배열 코드를 입력하세요&#10;예: arr = np.array([1, 2, 3, 4, 5])"></textarea>
+                <div class="btn-group">
+                    <button class="btn btn-example" onclick="loadNumpyExample()">예제 로드</button>
+                    <button class="btn btn-numpy" onclick="executeNumpy()">실행</button>
+                </div>
+                <div class="visualization-area" id="numpyVisualization">
+                    <div class="placeholder-message">NumPy 코드를 입력하고 실행 버튼을 클릭하세요</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-panel">
+            <div class="comparison-title">
+                <span>메모리 효율성 비교</span>
+            </div>
+            <div class="comparison-content" id="comparisonContent">
+                <div class="stat-box stat-box-python">
+                    <div class="stat-value" id="pythonBytes">-</div>
+                    <div class="stat-label">Python List 메모리</div>
+                </div>
+                <div class="stat-box stat-box-numpy">
+                    <div class="stat-value" id="numpyBytes">-</div>
+                    <div class="stat-label">NumPy Array 메모리</div>
+                </div>
+                <div class="stat-box stat-box-compare">
+                    <div class="stat-value" id="savedBytes">-</div>
+                    <div class="stat-label">메모리 절약량</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend-panel">
+            <div class="legend-title">범례 (Legend)</div>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #E3F2FD; border-color: #1976D2;"></div>
+                    <span>PyListObject 헤더</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #BBDEFB; border-color: #1976D2;"></div>
+                    <span>포인터 배열</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fff; border-color: #0D47A1;"></div>
+                    <span>PyObject (값 객체)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #E8F5E9; border-color: #4CAF50;"></div>
+                    <span>ndarray 헤더</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #C8E6C9; border-color: #4CAF50;"></div>
+                    <span>연속 메모리 블록</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 30px; height: 2px; background: #2196F3;"></div>
+                    <span>포인터 참조</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 예제 코드 ==========
+        const EXAMPLES = {
+            python: [
+                "my_list = [1, 2, 3, 4, 5]",
+                "data = [10, 20, 30, 40, 50, 60, 70, 80]",
+                "nums = [100, 200, 300]"
+            ],
+            numpy: [
+                "arr = np.array([1, 2, 3, 4, 5])",
+                "arr = np.array([10, 20, 30, 40, 50, 60, 70, 80], dtype=np.int64)",
+                "arr = np.array([100, 200, 300], dtype=np.int32)"
+            ]
+        };
+
+        let pythonExampleIndex = 0;
+        let numpyExampleIndex = 0;
+        let pythonMemory = null;
+        let numpyMemory = null;
+
+        // ========== 코드 파싱 ==========
+        function parseCode(code) {
+            // Python 리스트 패턴: varname = [1, 2, 3]
+            const listMatch = code.match(/(\w+)\s*=\s*\[([\d,\s.]+)\]/);
+            if (listMatch) {
+                const varName = listMatch[1];
+                const valuesStr = listMatch[2];
+                const values = valuesStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+                return { varName, values, type: 'list' };
+            }
+
+            // NumPy 배열 패턴: np.array([1, 2, 3], dtype=...)
+            const npMatch = code.match(/(\w+)\s*=\s*np\.array\(\[([\d,\s.]+)\](?:,\s*dtype\s*=\s*(?:np\.)?(\w+))?\)/);
+            if (npMatch) {
+                const varName = npMatch[1];
+                const valuesStr = npMatch[2];
+                const dtype = npMatch[3] || 'int64';
+                const values = valuesStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+                return { varName, values, type: 'array', dtype };
+            }
+
+            return null;
+        }
+
+        // ========== 메모리 시뮬레이션 ==========
+        function formatAddress(num) {
+            return '0x' + num.toString(16).toUpperCase().padStart(8, '0');
+        }
+
+        function getDtypeSize(dtype) {
+            const sizes = {
+                'int8': 1, 'int16': 2, 'int32': 4, 'int64': 8,
+                'uint8': 1, 'uint16': 2, 'uint32': 4, 'uint64': 8,
+                'float16': 2, 'float32': 4, 'float64': 8,
+                'bool': 1
+            };
+            return sizes[dtype] || 8;
+        }
+
+        function simulatePythonList(varName, values) {
+            const baseAddress = 0x14000000;
+            let currentAddress = baseAddress;
+
+            // PyListObject 헤더: 56 bytes
+            const header = {
+                address: currentAddress,
+                size: 56,
+                fields: {
+                    ob_refcnt: 1,
+                    ob_type: 'list',
+                    ob_size: values.length,
+                    allocated: values.length
+                }
+            };
+            currentAddress += 56;
+
+            // 포인터 배열: 8 bytes × n
+            const pointerArrayAddress = currentAddress;
+            const pointers = [];
+            currentAddress += values.length * 8;
+
+            // PyObject 객체들: 28 bytes × n
+            const objects = values.map((value, i) => {
+                const obj = {
+                    address: currentAddress,
+                    size: 28,
+                    value: value
+                };
+                pointers.push({
+                    index: i,
+                    address: pointerArrayAddress + (i * 8),
+                    targetAddress: currentAddress
+                });
+                currentAddress += 28;
+                return obj;
+            });
+
+            const totalBytes = 56 + (values.length * 8) + (values.length * 28);
+
+            return {
+                varName,
+                header,
+                pointerArray: {
+                    address: pointerArrayAddress,
+                    size: values.length * 8
+                },
+                pointers,
+                objects,
+                totalBytes
+            };
+        }
+
+        function simulateNumpyArray(varName, values, dtype = 'int64') {
+            const baseAddress = 0x14000000;
+            let currentAddress = baseAddress;
+            const itemsize = getDtypeSize(dtype);
+
+            // ndarray 헤더: 128 bytes
+            const header = {
+                address: currentAddress,
+                size: 128,
+                fields: {
+                    shape: [values.length],
+                    dtype: dtype,
+                    itemsize: itemsize,
+                    ndim: 1,
+                    strides: [itemsize],
+                    flags: 'C_CONTIGUOUS'
+                }
+            };
+            currentAddress += 128;
+
+            // 연속 데이터 블록
+            const dataBlockAddress = currentAddress;
+            const elements = values.map((value, i) => ({
+                index: i,
+                offset: i * itemsize,
+                address: dataBlockAddress + (i * itemsize),
+                value: value,
+                size: itemsize
+            }));
+
+            const dataSize = values.length * itemsize;
+            const totalBytes = 128 + dataSize;
+
+            return {
+                varName,
+                header,
+                dataBlock: {
+                    address: dataBlockAddress,
+                    size: dataSize,
+                    elements
+                },
+                totalBytes
+            };
+        }
+
+        // ========== SVG 렌더링 ==========
+        function createSVG(width, height) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+            // 화살표 마커 정의
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '10');
+            marker.setAttribute('markerHeight', '7');
+            marker.setAttribute('refX', '10');
+            marker.setAttribute('refY', '3.5');
+            marker.setAttribute('orient', 'auto');
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+            polygon.setAttribute('fill', '#2196F3');
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+
+            return svg;
+        }
+
+        function drawRect(svg, x, y, width, height, fill, stroke, strokeWidth = 2, rx = 4) {
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', x);
+            rect.setAttribute('y', y);
+            rect.setAttribute('width', width);
+            rect.setAttribute('height', height);
+            rect.setAttribute('fill', fill);
+            rect.setAttribute('stroke', stroke);
+            rect.setAttribute('stroke-width', strokeWidth);
+            rect.setAttribute('rx', rx);
+            svg.appendChild(rect);
+            return rect;
+        }
+
+        function drawText(svg, x, y, text, fontSize = 11, fill = '#333', anchor = 'start', weight = 'normal') {
+            const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            textEl.setAttribute('x', x);
+            textEl.setAttribute('y', y);
+            textEl.setAttribute('font-size', fontSize);
+            textEl.setAttribute('fill', fill);
+            textEl.setAttribute('font-family', 'Courier New, monospace');
+            textEl.setAttribute('text-anchor', anchor);
+            textEl.setAttribute('font-weight', weight);
+            textEl.textContent = text;
+            svg.appendChild(textEl);
+            return textEl;
+        }
+
+        function drawLine(svg, x1, y1, x2, y2, color = '#2196F3', width = 2, arrow = true) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', width);
+            if (arrow) {
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+            }
+            svg.appendChild(line);
+            return line;
+        }
+
+        function drawPythonMemory(containerId, memory) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            const n = memory.objects.length;
+            const width = Math.max(600, 80 + n * 85);
+            const height = 420;
+            const svg = createSVG(width, height);
+
+            // 헤더 박스
+            const headerX = 20, headerY = 20;
+            const headerW = 200, headerH = 80;
+            drawRect(svg, headerX, headerY, headerW, headerH, '#E3F2FD', '#1976D2', 3);
+            drawText(svg, headerX + 10, headerY + 20, 'PyListObject (Header)', 12, '#1976D2', 'start', 'bold');
+            drawText(svg, headerX + 10, headerY + 40, `size: ${memory.header.fields.ob_size}`, 10, '#333');
+            drawText(svg, headerX + 10, headerY + 55, formatAddress(memory.header.address), 9, '#666');
+            drawText(svg, headerX + 10, headerY + 70, `${memory.header.size} bytes`, 9, '#999');
+
+            // 포인터 배열 라벨
+            drawText(svg, 20, 125, 'Pointer Array:', 11, '#1976D2', 'start', 'bold');
+
+            // 포인터 배열 박스들
+            const pointerY = 135;
+            const pointerW = 70, pointerH = 45;
+            const pointerGap = 15;
+            const startX = 20;
+
+            memory.pointers.forEach((ptr, i) => {
+                const px = startX + i * (pointerW + pointerGap);
+                drawRect(svg, px, pointerY, pointerW, pointerH, '#BBDEFB', '#1976D2', 2);
+                drawText(svg, px + pointerW/2, pointerY + 18, `ptr[${i}]`, 10, '#1976D2', 'middle', 'bold');
+                drawText(svg, px + pointerW/2, pointerY + 35, '→', 14, '#2196F3', 'middle');
+            });
+
+            // PyObject 라벨
+            drawText(svg, 20, 215, 'PyObject (Values):', 11, '#0D47A1', 'start', 'bold');
+
+            // PyObject 박스들
+            const objectY = 225;
+            const objectW = 70, objectH = 70;
+
+            memory.objects.forEach((obj, i) => {
+                const ox = startX + i * (objectW + pointerGap);
+                drawRect(svg, ox, objectY, objectW, objectH, '#FFFFFF', '#0D47A1', 2);
+                drawText(svg, ox + objectW/2, objectY + 18, `${obj.value}`, 14, '#0D47A1', 'middle', 'bold');
+                drawText(svg, ox + objectW/2, objectY + 38, formatAddress(obj.address).slice(-6), 8, '#666', 'middle');
+                drawText(svg, ox + objectW/2, objectY + 55, `${obj.size}B`, 9, '#999', 'middle');
+
+                // 화살표
+                const arrowStartX = ox + objectW/2;
+                const arrowStartY = pointerY + pointerH;
+                const arrowEndY = objectY;
+                drawLine(svg, arrowStartX, arrowStartY, arrowStartX, arrowEndY - 5, '#2196F3', 2, true);
+            });
+
+            // 메모리 요약
+            drawRect(svg, 20, 320, width - 40, 80, '#F5F5F5', '#BDBDBD', 1);
+            drawText(svg, 30, 345, '메모리 구조 요약', 12, '#333', 'start', 'bold');
+            drawText(svg, 30, 365, `헤더: ${memory.header.size}B + 포인터배열: ${memory.pointerArray.size}B + 객체들: ${memory.objects.length * 28}B`, 10, '#666');
+            drawText(svg, 30, 385, `총 메모리: ${memory.totalBytes} bytes (각 요소가 독립적인 PyObject)`, 10, '#1976D2', 'start', 'bold');
+
+            container.appendChild(svg);
+        }
+
+        function drawNumpyMemory(containerId, memory) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            const n = memory.dataBlock.elements.length;
+            const width = Math.max(600, 80 + n * 70);
+            const height = 420;
+            const svg = createSVG(width, height);
+
+            // 헤더 박스
+            const headerX = 20, headerY = 20;
+            const headerW = 220, headerH = 100;
+            drawRect(svg, headerX, headerY, headerW, headerH, '#E8F5E9', '#4CAF50', 3);
+            drawText(svg, headerX + 10, headerY + 20, 'ndarray (Header)', 12, '#4CAF50', 'start', 'bold');
+            drawText(svg, headerX + 10, headerY + 40, `shape: [${memory.header.fields.shape}]`, 10, '#333');
+            drawText(svg, headerX + 10, headerY + 55, `dtype: ${memory.header.fields.dtype}`, 10, '#333');
+            drawText(svg, headerX + 10, headerY + 70, `itemsize: ${memory.header.fields.itemsize}B`, 10, '#333');
+            drawText(svg, headerX + 10, headerY + 85, formatAddress(memory.header.address), 9, '#666');
+            drawText(svg, headerX + 150, headerY + 85, `${memory.header.size}B`, 9, '#999');
+
+            // 화살표: 헤더 → 데이터블록
+            drawLine(svg, headerX + headerW/2, headerY + headerH, headerX + headerW/2, 160, '#4CAF50', 2, true);
+
+            // 연속 메모리 블록 라벨
+            drawText(svg, 20, 185, 'Contiguous Memory Block:', 11, '#4CAF50', 'start', 'bold');
+
+            // 연속 메모리 셀들
+            const cellY = 200;
+            const cellW = 60, cellH = 65;
+            const cellGap = 5;
+            const startX = 20;
+
+            // 연속 메모리 배경
+            const totalBlockW = n * cellW + (n-1) * cellGap;
+            drawRect(svg, startX - 5, cellY - 5, totalBlockW + 10, cellH + 10, '#C8E6C9', '#4CAF50', 2, 8);
+
+            memory.dataBlock.elements.forEach((elem, i) => {
+                const cx = startX + i * (cellW + cellGap);
+                drawRect(svg, cx, cellY, cellW, cellH, '#FFFFFF', '#2E7D32', 2, 4);
+                drawText(svg, cx + cellW/2, cellY + 20, `${elem.value}`, 14, '#2E7D32', 'middle', 'bold');
+                drawText(svg, cx + cellW/2, cellY + 40, `+${elem.offset}B`, 9, '#666', 'middle');
+                drawText(svg, cx + cellW/2, cellY + 55, `[${i}]`, 9, '#999', 'middle');
+            });
+
+            // 메모리 요약
+            drawRect(svg, 20, 300, width - 40, 100, '#F5F5F5', '#BDBDBD', 1);
+            drawText(svg, 30, 325, '메모리 구조 요약', 12, '#333', 'start', 'bold');
+            drawText(svg, 30, 345, `헤더: ${memory.header.size}B + 데이터블록: ${memory.dataBlock.size}B`, 10, '#666');
+            drawText(svg, 30, 365, `총 메모리: ${memory.totalBytes} bytes`, 10, '#4CAF50', 'start', 'bold');
+            drawText(svg, 30, 385, `특징: 연속 메모리 블록, 포인터 오버헤드 없음, 캐시 효율적`, 10, '#666');
+
+            container.appendChild(svg);
+        }
+
+        // ========== 이벤트 핸들러 ==========
+        function loadPythonExample() {
+            const code = EXAMPLES.python[pythonExampleIndex % EXAMPLES.python.length];
+            document.getElementById('pythonCode').value = code;
+            pythonExampleIndex++;
+        }
+
+        function loadNumpyExample() {
+            const code = EXAMPLES.numpy[numpyExampleIndex % EXAMPLES.numpy.length];
+            document.getElementById('numpyCode').value = code;
+            numpyExampleIndex++;
+        }
+
+        function executePython() {
+            const code = document.getElementById('pythonCode').value;
+            const parsed = parseCode(code);
+
+            if (!parsed || parsed.type !== 'list') {
+                alert('유효한 Python 리스트 코드를 입력하세요.\n예: my_list = [1, 2, 3, 4, 5]');
+                return;
+            }
+
+            pythonMemory = simulatePythonList(parsed.varName, parsed.values);
+            drawPythonMemory('pythonVisualization', pythonMemory);
+            updateComparison();
+        }
+
+        function executeNumpy() {
+            const code = document.getElementById('numpyCode').value;
+            const parsed = parseCode(code);
+
+            if (!parsed || parsed.type !== 'array') {
+                alert('유효한 NumPy 배열 코드를 입력하세요.\n예: arr = np.array([1, 2, 3, 4, 5])');
+                return;
+            }
+
+            numpyMemory = simulateNumpyArray(parsed.varName, parsed.values, parsed.dtype);
+            drawNumpyMemory('numpyVisualization', numpyMemory);
+            updateComparison();
+        }
+
+        function updateComparison() {
+            const pythonBytesEl = document.getElementById('pythonBytes');
+            const numpyBytesEl = document.getElementById('numpyBytes');
+            const savedBytesEl = document.getElementById('savedBytes');
+
+            if (pythonMemory) {
+                pythonBytesEl.textContent = `${pythonMemory.totalBytes} bytes`;
+            }
+
+            if (numpyMemory) {
+                numpyBytesEl.textContent = `${numpyMemory.totalBytes} bytes`;
+            }
+
+            if (pythonMemory && numpyMemory) {
+                const saved = pythonMemory.totalBytes - numpyMemory.totalBytes;
+                const percent = ((saved / pythonMemory.totalBytes) * 100).toFixed(1);
+                if (saved > 0) {
+                    savedBytesEl.textContent = `${saved} bytes (${percent}%)`;
+                } else if (saved < 0) {
+                    savedBytesEl.textContent = `+${Math.abs(saved)} bytes`;
+                } else {
+                    savedBytesEl.textContent = '동일';
+                }
+            }
+        }
+
+        // 페이지 로드 시 예제 자동 로드
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPythonExample();
+            loadNumpyExample();
+        });
+    </script>
+</body>
+</html>
